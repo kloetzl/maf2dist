@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <err.h>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -10,6 +12,7 @@
 
 static const int MAX_NAME_LENGTH = 64;
 
+void usage(int);
 void convert(const std::string &);
 
 constexpr int hash(char c) noexcept
@@ -105,10 +108,10 @@ class model
 		return muts / static_cast<double>(total);
 	}
 
-	double to_jc() const 
+	double to_jc() const
 	{
 		auto raw = to_raw();
-		auto dist = -0.75 * std::log(1.0 - (4.0/3.0) * raw);
+		auto dist = -0.75 * std::log(1.0 - (4.0 / 3.0) * raw);
 
 		return dist <= 0.0 ? 0.0 : dist;
 	}
@@ -139,6 +142,10 @@ int main(int argc, char *argv[])
 {
 	auto file_names = std::vector<std::string>{};
 	file_names.reserve(static_cast<size_t>(argc));
+
+	if (argv[1] && strcmp(argv[1], "-h") == 0) {
+		usage(EXIT_SUCCESS);
+	}
 
 	argv++; // skip binary
 	while (*argv) {
@@ -172,6 +179,9 @@ template <> struct hash<std::pair<std::string, std::string>> {
 void convert(const std::string &file_name)
 {
 	FILE *file = file_name == "-" ? stdin : fopen(file_name.c_str(), "r");
+	if (!file) {
+		err(errno, "%s", file_name.c_str());
+	}
 
 	using key_type = std::pair<std::string, std::string>;
 	auto names = std::unordered_set<std::string>{};
@@ -183,7 +193,7 @@ void convert(const std::string &file_name)
 		return std::make_pair(i_name, j_name);
 	};
 
-	auto to_name = [](const char * c_name) {
+	auto to_name = [](const char *c_name) {
 		auto dot_ptr = std::strchr(c_name, '.');
 		auto name = std::string(c_name, dot_ptr - c_name);
 		return name;
@@ -240,15 +250,19 @@ void convert(const std::string &file_name)
 	fclose(file);
 }
 
-void usage()
+void usage(int status)
 {
-	static const char str[] = {""};
+	static const char str[] = {"usage: maf2dist [file...]\n"};
+	fputs(str, status == EXIT_SUCCESS ? stdout : stderr);
+	exit(status);
 }
 
 void version()
 {
 	static const char str[] = {
 		"maf2dist v1\n"
-		"Copyright (C) 2016  Fabian Klötzl <fabian-maf2dist@kloetzl.info>\n"
-	};
+		"Copyright (C) 2016 Fabian Klötzl <fabian-maf2dist@kloetzl.info>\n"
+		"ISC License\n"};
+
+	printf(str);
 }

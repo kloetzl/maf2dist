@@ -12,6 +12,8 @@ Then you can invoke `maf2dist` as follows.
 
     ./maf2dist foo.maf bar.maf
 
+If no file name is supplied, `maf2dist` reads from `stdin` instead.
+
 ## License
 
 ISC License

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -15,11 +16,18 @@ static const int MAX_NAME_LENGTH = 64;
 void usage(int);
 void convert(const std::string &);
 
-constexpr int hash(char c) noexcept
+int hash(char c) noexcept
 {
-	c &= 6;
-	c ^= c >> 1;
-	return c >> 1;
+	static const auto table = ([](){
+		auto table = std::array<char, 127> {};
+		table.fill(4);
+		table['A'] = 0;
+		table['C'] = 1;
+		table['G'] = 2;
+		table['T'] = 3;
+		return table;
+	})();
+	return table[c];
 }
 
 class model
@@ -65,6 +73,10 @@ class model
 
 			A = hash(A);
 			B = hash(B);
+
+			if ( A  == 4 || B == 4) {
+				continue;
+			}
 
 			int index;
 			switch (A) {

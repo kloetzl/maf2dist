@@ -67,7 +67,7 @@ class model
 				continue;
 			}
 
-			if (A < B) {
+			if (A > B) {
 				std::swap(A, B);
 			}
 

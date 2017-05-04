@@ -251,13 +251,13 @@ void convert(const std::string &file_name)
 
 	std::cout << names.size() << std::endl;
 	for (auto i_name : names) {
-		std::cout << i_name << " ";
+		std::cout << i_name;
 		for (auto j_name : names) {
 			if (i_name == j_name) {
-				std::cout << 0.0 << " ";
+				std::cout << " " << 0.0;
 			} else {
 				auto key = make_key(i_name, j_name);
-				std::cout << mat[key].to_jc() << " ";
+				std::cout << " " << mat[key].to_jc();
 			}
 		}
 		std::cout << std::endl;

@@ -18,8 +18,8 @@ void convert(const std::string &);
 
 int hash(char c) noexcept
 {
-	static const auto table = ([](){
-		auto table = std::array<char, 127> {};
+	static const auto table = ([]() {
+		auto table = std::array<char, 127>{};
 		table.fill(4);
 		table['A'] = 0;
 		table['C'] = 1;
@@ -74,7 +74,7 @@ class model
 			A = hash(A);
 			B = hash(B);
 
-			if ( A  == 4 || B == 4) {
+			if (A == 4 || B == 4) {
 				continue;
 			}
 
@@ -159,18 +159,14 @@ int main(int argc, char *argv[])
 		usage(EXIT_SUCCESS);
 	}
 
-	argv++; // skip binary
-	while (*argv) {
-		file_names.push_back(*argv++);
-	}
+	argv++, argc--; // skip binary
+	std::copy(argv, argv + argc, std::back_inserter(file_names));
 
 	if (file_names.empty()) {
 		file_names.push_back("-");
 	}
 
-	for (auto file_name : file_names) {
-		convert(file_name);
-	}
+	std::for_each(file_names.begin(), file_names.end(), convert);
 
 	return 0;
 }

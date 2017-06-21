@@ -16,108 +16,32 @@ static const int MAX_NAME_LENGTH = 64;
 void usage(int);
 void convert(const std::string &);
 
-int hash(char c) noexcept
-{
-	static const auto table = ([]() {
-		auto table = std::array<char, 127>{};
-		table.fill(4);
-		table['A'] = 0;
-		table['C'] = 1;
-		table['G'] = 2;
-		table['T'] = 3;
-		return table;
-	})();
-	return table[c];
-}
-
 class model
 {
-	enum {
-		AtoA,
-		AtoC,
-		AtoG,
-		AtoT,
-		CtoC,
-		CtoG,
-		CtoT,
-		GtoG,
-		GtoT,
-		TtoT,
-		MUTCOUNTS,
-		CtoA = AtoC,
-		GtoA = AtoG,
-		GtoC = CtoG,
-		TtoA = AtoT,
-		TtoC = CtoT,
-		TtoG = GtoT
-	};
-
-	size_t counts[MUTCOUNTS] = {0};
+	size_t total = 0;
+	size_t mutations = 0;
 
   public:
 	model() = default;
 
 	void add_compare(const char *a, const char *b)
 	{
-		size_t local[MUTCOUNTS] = {0};
-
 		while (*a && *b) {
 			int A = *a++, B = *b++;
 			if (A == '-' || B == '-') {
 				continue;
 			}
 
-			if (A > B) {
-				std::swap(A, B);
+			if (A != B) {
+				mutations++;
 			}
-
-			A = hash(A);
-			B = hash(B);
-
-			if (A == 4 || B == 4) {
-				continue;
-			}
-
-			int index;
-			switch (A) {
-				case 0: index = AtoA; break;
-				case 1: index = CtoC; break;
-				case 2: index = GtoG; break;
-				case 3: index = TtoT; break;
-			}
-
-			index += B - A;
-			local[index]++;
+			total++;
 		}
-
-		for (int k = 0; k < MUTCOUNTS; k++) {
-			counts[k] += local[k];
-		}
-	}
-
-	size_t total() const
-	{
-		size_t ret = 0;
-		for (size_t i = 0; i < MUTCOUNTS; i++) {
-			ret += counts[i];
-		}
-		return ret;
 	}
 
 	double to_raw() const
 	{
-		auto total = this->total();
-		if (total == 0) {
-			return 0.0;
-		}
-
-		auto temp = std::array<int, 6>{{AtoC, AtoG, AtoT, CtoG, CtoT, GtoT}};
-		auto muts = size_t{0};
-		for (auto i : temp) {
-			muts += counts[i];
-		}
-
-		return muts / static_cast<double>(total);
+		return mutations / static_cast<double>(total);
 	}
 
 	double to_jc() const
@@ -253,7 +177,7 @@ void convert(const std::string &file_name)
 				std::cout << " " << 0.0;
 			} else {
 				auto key = make_key(i_name, j_name);
-				std::cout << " " << mat[key].to_jc();
+				std::cout << " " << mat[key].to_raw();
 			}
 		}
 		std::cout << std::endl;

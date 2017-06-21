@@ -76,15 +76,12 @@ struct s_line read_line(FILE *file)
 
 int main(int argc, char *argv[])
 {
-	auto file_names = std::vector<std::string>{};
-	file_names.reserve(static_cast<size_t>(argc));
-
 	if (argv[1] && strcmp(argv[1], "-h") == 0) {
 		usage(EXIT_SUCCESS);
 	}
 
 	argv++, argc--; // skip binary
-	std::copy(argv, argv + argc, std::back_inserter(file_names));
+	auto file_names = std::vector<std::string>{argv, argv + argc};
 
 	if (file_names.empty()) {
 		file_names.push_back("-");
@@ -197,7 +194,7 @@ void version()
 {
 	static const char str[] = {
 		"maf2dist v1\n"
-		"Copyright (C) 2016 Fabian Klötzl <fabian-maf2dist@kloetzl.info>\n"
+		"Copyright (C) 2016 - 2017 Fabian Klötzl <fabian-maf2dist@kloetzl.info>\n"
 		"ISC License\n"};
 
 	printf(str);

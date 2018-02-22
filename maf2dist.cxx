@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <assert.h>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -24,19 +25,24 @@ class model
   public:
 	model() = default;
 
-	void add_compare(const char *a, const char *b)
+	void add_compare(const std::string &a, const std::string &b)
 	{
-		while (*a && *b) {
-			int A = *a++, B = *b++;
-			if (A == '-' || B == '-') {
-				continue;
+		size_t local_total = 0;
+		size_t local_mutations = 0;
+		assert(a.size() == b.size());
+
+		for (size_t i = 0; i < a.size(); i++) {
+			if (a[i] == '-' || b[i] == '-') continue;
+
+			if (a[i] != b[i]) {
+				local_mutations++;
 			}
 
-			if (A != B) {
-				mutations++;
-			}
-			total++;
+			local_total++;
 		}
+
+		total += local_total;
+		mutations += local_mutations;
 	}
 
 	double to_raw() const
@@ -53,25 +59,68 @@ class model
 	}
 };
 
-struct s_line {
-	int pos, non_gaps;
-	char strand;
-	int seq_length;
-	char name[MAX_NAME_LENGTH];
-	char *nucl;
+void forward_to_next_line(FILE *file)
+{
+	int c;
+	while ((c = fgetc(file)) != '\n')
+		; //
+}
+
+void skip_blank_lines(FILE *file)
+{
+	int c;
+	while ((c = fgetc(file)) == '\n')
+		; // skip blank lines
+	ungetc(c, file);
+}
+
+class line
+{
+	static auto strip_name(const char *c_name)
+	{
+		auto dot_ptr = std::strchr(c_name, '.');
+		auto name = std::string(c_name, dot_ptr - c_name);
+		return name;
+	};
+
+	std::string m_name;
+	std::string m_nucl;
+
+  public:
+	line() = default;
+	line(const char *name_ptr, const char *nucl_ptr)
+		: m_name(strip_name(name_ptr)), m_nucl(nucl_ptr)
+	{
+	}
+
+	std::string name() const
+	{
+		return m_name;
+	}
+
+	std::string &nucl() noexcept
+	{
+		return m_nucl;
+	}
 };
 
-struct s_line read_line(FILE *file)
+line read_line(FILE *file)
 {
-	struct s_line ret;
+	int pos;		   // don't care
+	int non_gaps;	  // no one cares
+	char strand;	   // not required
+	int genome_length; // unnecessary repeated information
 
-	fscanf(file, "s %s %d %d %c %d %ms", ret.name, &ret.pos, &ret.non_gaps,
-		   &ret.strand, &ret.seq_length, &ret.nucl);
+	char name[MAX_NAME_LENGTH];
+	char *nucl;
+
+	fscanf(file, "s %s %d %d %c %d %ms", name, &pos, &non_gaps, &strand,
+		   &genome_length, &nucl);
 
 	while (fgetc(file) != '\n')
 		;
 
-	return ret;
+	return line(name, nucl);
 }
 
 int main(int argc, char *argv[])
@@ -105,6 +154,15 @@ template <> struct hash<std::pair<std::string, std::string>> {
 };
 }
 
+auto make_key(std::string i_name, std::string j_name)
+{
+	if (i_name > j_name) {
+		std::swap(i_name, j_name);
+	}
+
+	return std::make_pair(i_name, j_name);
+}
+
 void convert(const std::string &file_name)
 {
 	FILE *file = file_name == "-" ? stdin : fopen(file_name.c_str(), "r");
@@ -115,53 +173,37 @@ void convert(const std::string &file_name)
 	using key_type = std::pair<std::string, std::string>;
 	auto names = std::unordered_set<std::string>{};
 	auto mat = std::unordered_map<key_type, model>{};
-	auto make_key = [](std::string i_name, std::string j_name) {
-		if (i_name > j_name) {
-			std::swap(i_name, j_name);
-		}
-		return std::make_pair(i_name, j_name);
-	};
-
-	auto to_name = [](const char *c_name) {
-		auto dot_ptr = std::strchr(c_name, '.');
-		auto name = std::string(c_name, dot_ptr - c_name);
-		return name;
-	};
 
 	fscanf(file, "##maf");
-	int c;
-	while ((c = fgetc(file)) != '\n')
-		;
-	// ungetc(c, file);
+
+	forward_to_next_line(file);
 
 	while (fgetc(file) == 'a') {
+		forward_to_next_line(file);
+
+		auto lines = std::vector<line>{};
+
 		int c;
-		while ((c = fgetc(file)) != '\n')
-			; // forward to end of line
-
-		auto lines = std::vector<struct s_line>{};
-
 		while ((c = fgetc(file)) == 's') {
 			ungetc(c, file);
-			lines.push_back(read_line(file));
+			lines.emplace_back(read_line(file));
 		}
 		ungetc(c, file);
 
-		while ((c = fgetc(file)) == '\n')
-			; // skip blank lines
-		ungetc(c, file);
+		skip_blank_lines(file);
 
 		for (size_t i = 0; i < lines.size(); i++) {
-			auto i_name = to_name(lines[i].name);
+			auto i_name = lines[i].name();
 			names.insert(i_name);
+
 			for (size_t j = 0; j < i; j++) {
 				// pair of names into unsorted map
-				auto j_name = to_name(lines[j].name);
+				auto j_name = lines[j].name();
 				names.insert(j_name);
 
 				auto key = make_key(i_name, j_name);
 				// TODO: parallise this
-				mat[key].add_compare(lines[i].nucl, lines[j].nucl);
+				mat[key].add_compare(lines[i].nucl(), lines[j].nucl());
 			}
 		}
 	}
@@ -193,9 +235,12 @@ void usage(int status)
 void version()
 {
 	static const char str[] = {
+		// hack
 		"maf2dist v1\n"
-		"Copyright (C) 2016 - 2017 Fabian Klötzl <fabian-maf2dist@kloetzl.info>\n"
-		"ISC License\n"};
+		"Copyright (C) 2016 - 2018 Fabian Klötzl "
+		"<fabian-maf2dist@kloetzl.info>\n"
+		"ISC License\n" //
+	};
 
 	printf(str);
 }

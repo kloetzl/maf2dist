@@ -1,5 +1,5 @@
 CPPFLAGS += -Wall -Wextra -std=gnu++14
-CXXFLAGS += -O2 -ggdb -march=native -ftree-vectorize
+CXXFLAGS += -O3 -ggdb -march=native
 
 
 .PHONY: all clean format

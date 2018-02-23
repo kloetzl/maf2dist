@@ -79,8 +79,12 @@ class line
 	static auto strip_name(const char *c_name)
 	{
 		auto dot_ptr = std::strchr(c_name, '.');
-		auto name = std::string(c_name, dot_ptr - c_name);
-		return name;
+		if (dot_ptr) {
+			return std::string(c_name, dot_ptr - c_name);
+		} else {
+			// no dot found
+			return std::string(c_name);
+		}
 	};
 
 	std::string m_name;

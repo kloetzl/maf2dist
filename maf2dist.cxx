@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <array>
-#include <assert.h>
+#include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -216,7 +216,7 @@ void convert(const std::string &file_name)
 				std::cout << " " << 0.0;
 			} else {
 				auto key = make_key(i_name, j_name);
-				std::cout << " " << mat[key].to_raw();
+				std::cout << " " << mat[key].to_jc();
 			}
 		}
 		std::cout << std::endl;

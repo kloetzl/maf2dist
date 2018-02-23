@@ -10,7 +10,7 @@ All you need is a C++14 compatible compiler.
 
 Then you can invoke `maf2dist` as follows.
 
-    ./maf2dist foo.maf bar.maf
+    ./maf2dist foo.maf
 
 If no file name is supplied, `maf2dist` reads from `stdin` instead.
 
@@ -18,7 +18,7 @@ If no file name is supplied, `maf2dist` reads from `stdin` instead.
 
 ISC License
 
-Copyright (c) 2016, Fabian Klötzl <fabian-maf2dist@kloetzl.info>
+Copyright (c) 2016 - 2018, Fabian Klötzl <fabian-maf2dist@kloetzl.info>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above

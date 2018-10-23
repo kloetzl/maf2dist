@@ -209,14 +209,34 @@ void convert(const std::string &file_name)
 
 		skip_blank_lines(file);
 
+		// add names to list
+		for (auto &line : lines) {
+			names.insert(line.name());
+		}
+
+		auto length = lines[0].nucl().size();
+		auto mask = std::vector<char>(length, 0);
+
+		for (auto &line : lines) {
+			for (size_t k = 0; k < line.nucl().size(); k++) {
+				mask[k] = mask[k] || (line.nucl()[k] == '-');
+			}
+		}
+
+		for (auto &line : lines) {
+			for (size_t k = 0; k < line.nucl().size(); k++) {
+				if (mask[k]) {
+					line.nucl()[k] = '-';
+				}
+			}
+		}
+
 		for (size_t i = 0; i < lines.size(); i++) {
 			auto i_name = lines[i].name();
-			names.insert(i_name);
 
 			for (size_t j = 0; j < i; j++) {
 				// pair of names into unsorted map
 				auto j_name = lines[j].name();
-				names.insert(j_name);
 
 				auto key = make_key(i_name, j_name);
 				// TODO: parallise this

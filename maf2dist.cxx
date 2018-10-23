@@ -6,10 +6,13 @@
 #include <cstdlib>
 #include <cstring>
 #include <err.h>
+#include <functional>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 static const int MAX_NAME_LENGTH = 64;
@@ -92,6 +95,15 @@ class line
 
   public:
 	line() = default;
+
+	template <typename T, typename U>
+	line(T &&name, U &&nucl)
+		: m_name(std::forward<T>(name)), m_nucl(std::forward<U>(nucl))
+	{
+		// strip name
+		m_name = strip_name(m_name.c_str());
+	}
+
 	line(const char *name_ptr, const char *nucl_ptr)
 		: m_name(strip_name(name_ptr)), m_nucl(nucl_ptr)
 	{
@@ -124,7 +136,8 @@ line read_line(FILE *file)
 	while (fgetc(file) != '\n')
 		;
 
-	return line(name, nucl);
+	auto un = std::unique_ptr<char[], std::function<void(void *)>>(nucl, free);
+	return line(name, un.get());
 }
 
 int main(int argc, char *argv[])
@@ -156,7 +169,7 @@ template <> struct hash<std::pair<std::string, std::string>> {
 		return a ^ ((b << 6) + (b >> 2));
 	}
 };
-}
+} // namespace std
 
 auto make_key(std::string i_name, std::string j_name)
 {

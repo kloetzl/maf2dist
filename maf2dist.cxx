@@ -7,6 +7,7 @@
 #include <cstring>
 #include <err.h>
 #include <functional>
+#include <getopt.h>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -16,6 +17,7 @@
 #include <vector>
 
 static const int MAX_NAME_LENGTH = 64;
+static bool core = false;
 
 void usage(int);
 void convert(const std::string &);
@@ -142,11 +144,28 @@ line read_line(FILE *file)
 
 int main(int argc, char *argv[])
 {
-	if (argv[1] && strcmp(argv[1], "-h") == 0) {
-		usage(EXIT_SUCCESS);
+	static struct option long_options[] = {
+		{"core", no_argument, 0, 'c'},
+		{"help", no_argument, 0, 'h'},
+		{0, 0, 0, 0} //
+	};
+
+	while (true) {
+		int c = getopt_long(argc, argv, "ch", long_options, NULL);
+		if (c == 'h') {
+			usage(EXIT_SUCCESS);
+		} else if (c == 'c') {
+			core = true;
+		} else if (c == -1) {
+			break;
+		} else {
+			usage(EXIT_FAILURE);
+		}
 	}
 
-	argv++, argc--; // skip binary
+	argv += optind;
+	argc -= optind;
+
 	auto file_names = std::vector<std::string>{argv, argv + argc};
 
 	if (file_names.empty()) {
@@ -214,19 +233,21 @@ void convert(const std::string &file_name)
 			names.insert(line.name());
 		}
 
-		auto length = lines[0].nucl().size();
-		auto mask = std::vector<char>(length, 0);
+		if (core) {
+			auto length = lines[0].nucl().size();
+			auto mask = std::vector<char>(length, 0);
 
-		for (auto &line : lines) {
-			for (size_t k = 0; k < line.nucl().size(); k++) {
-				mask[k] = mask[k] || (line.nucl()[k] == '-');
+			for (auto &line : lines) {
+				for (size_t k = 0; k < line.nucl().size(); k++) {
+					mask[k] = mask[k] || (line.nucl()[k] == '-');
+				}
 			}
-		}
 
-		for (auto &line : lines) {
-			for (size_t k = 0; k < line.nucl().size(); k++) {
-				if (mask[k]) {
-					line.nucl()[k] = '-';
+			for (auto &line : lines) {
+				for (size_t k = 0; k < line.nucl().size(); k++) {
+					if (mask[k]) {
+						line.nucl()[k] = '-';
+					}
 				}
 			}
 		}

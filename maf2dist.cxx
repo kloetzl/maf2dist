@@ -238,17 +238,18 @@ void convert(const std::string &file_name)
 			auto mask = std::vector<char>(length, 0);
 
 			for (auto &line : lines) {
-				for (size_t k = 0; k < line.nucl().size(); k++) {
-					mask[k] = mask[k] || (line.nucl()[k] == '-');
-				}
+				std::transform(mask.begin(), mask.end(), line.nucl().begin(),
+							   mask.begin(), [](auto bit, auto nucleotide) {
+								   return bit || nucleotide == '-';
+							   });
 			}
 
 			for (auto &line : lines) {
-				for (size_t k = 0; k < line.nucl().size(); k++) {
-					if (mask[k]) {
-						line.nucl()[k] = '-';
-					}
-				}
+				std::transform(mask.begin(), mask.end(), line.nucl().begin(),
+							   line.nucl().begin(),
+							   [](auto bit, auto nucleotide) {
+								   return bit ? '-' : nucleotide;
+							   });
 			}
 		}
 

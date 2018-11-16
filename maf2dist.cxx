@@ -268,18 +268,19 @@ void convert(const std::string &file_name)
 		}
 	}
 
-	std::cout << names.size() << std::endl;
+	printf("%zu\n", names.size());
 	for (auto i_name : names) {
-		std::cout << i_name;
+		printf("%-10s", i_name.c_str());
 		for (auto j_name : names) {
-			if (i_name == j_name) {
-				std::cout << " " << 0.0;
-			} else {
+			auto val = 0.0;
+			if (i_name != j_name) {
 				auto key = make_key(i_name, j_name);
-				std::cout << " " << mat[key].to_jc();
+				val = mat[key].to_jc();
 			}
+
+			printf(" %1.4e", val);
 		}
-		std::cout << std::endl;
+		printf("\n");
 	}
 
 	fclose(file);

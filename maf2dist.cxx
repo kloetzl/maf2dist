@@ -213,6 +213,7 @@ void convert(const std::string &file_name)
 	fscanf(file, "##maf");
 
 	forward_to_next_line(file);
+	skip_blank_lines(file);
 
 	while (fgetc(file) == 'a') {
 		forward_to_next_line(file);

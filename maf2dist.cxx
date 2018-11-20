@@ -9,6 +9,7 @@
 #include <functional>
 #include <getopt.h>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -166,8 +167,9 @@ class block_type
 	auto names() const
 	{
 		auto names = std::unordered_set<std::string>{};
-		std::for_each(lines.begin(), lines.end(),
-					  [&](const auto &line) { names.insert(line.name()); });
+		auto ins = std::inserter(names, names.end());
+		auto get_name = [](const auto &line) { return line.name(); };
+		std::transform(lines.cbegin(), lines.cend(), ins, get_name);
 		return names;
 	}
 
@@ -198,18 +200,22 @@ class block_type
 		auto length = lines[0].nucl().size();
 		auto mask = std::vector<char>(length, 0);
 
-		for (auto &line : lines) {
-			std::transform(mask.begin(), mask.end(), line.nucl().begin(),
-						   mask.begin(), [](auto bit, auto nucleotide) {
-							   return bit || nucleotide == '-';
-						   });
-		}
+		auto is_gap = [](auto bit, auto nucleotide) {
+			return bit || nucleotide == '-';
+		};
 
 		for (auto &line : lines) {
 			std::transform(mask.begin(), mask.end(), line.nucl().begin(),
-						   line.nucl().begin(), [](auto bit, auto nucleotide) {
-							   return bit ? '-' : nucleotide;
-						   });
+						   mask.begin(), is_gap);
+		}
+
+		auto set_gap = [](auto bit, auto nucleotide) {
+			return bit ? '-' : nucleotide;
+		};
+
+		for (auto &line : lines) {
+			std::transform(mask.begin(), mask.end(), line.nucl().begin(),
+						   line.nucl().begin(), set_gap);
 		}
 	}
 };
@@ -341,19 +347,15 @@ void convert(const std::string &file_name)
 
 	// compute set of names
 	auto names = std::unordered_set<std::string>{};
-	std::for_each(blocks.begin(), blocks.end(), [&](const auto &block) {
-		auto n = block.names();
-		for (auto name : n) {
-			names.insert(name);
-		}
-		// names.merge(n);
-	});
+	auto merger = [&](const auto &block) { names.merge(block.names()); };
+	std::for_each(blocks.begin(), blocks.end(), merger);
 
 	// do stuff
 	if (core) {
-		auto split =
-			std::remove_if(blocks.begin(), blocks.end(),
-						   [&](auto &block) { return block.names() != names; });
+		auto is_not_full = [&](const auto &block) {
+			return block.names() != names;
+		};
+		auto split = std::remove_if(blocks.begin(), blocks.end(), is_not_full);
 		blocks.erase(split, blocks.end());
 
 		std::for_each(blocks.begin(), blocks.end(), block_type::trim_to_core);

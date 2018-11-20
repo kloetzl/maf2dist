@@ -1,5 +1,5 @@
-CPPFLAGS += -Wall -Wextra -std=gnu++14
-CXXFLAGS += -O3 -ggdb -march=native
+CPPFLAGS += -Wall -Wextra -std=gnu++17
+CXXFLAGS += -O3 -ggdb -march=native #-fsanitize=address
 
 
 .PHONY: all clean format

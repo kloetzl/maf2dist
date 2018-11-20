@@ -23,8 +23,6 @@ static bool core = false;
 void usage(int);
 void convert(const std::string &);
 
-using key_type = std::pair<std::string, std::string>;
-
 class model
 {
 	size_t total = 0;
@@ -73,6 +71,24 @@ class model
 		return *this;
 	}
 };
+
+using key_type = std::pair<std::string, std::string>;
+using mat_type = std::unordered_map<key_type, model>;
+
+key_type make_key(std::string i_name, std::string j_name);
+
+namespace std
+{
+template <> struct hash<key_type> {
+  public:
+	size_t operator()(key_type p) const noexcept
+	{
+		auto a = std::hash<std::string>()(p.first);
+		auto b = std::hash<std::string>()(p.second);
+		return a ^ ((b << 6) + (b >> 2));
+	}
+};
+} // namespace std
 
 void forward_to_next_line(FILE *file)
 {
@@ -137,8 +153,66 @@ class line
 	}
 };
 
-using block_type = std::vector<line>;
-using mat_type = std::unordered_map<key_type, model>;
+class block_type
+{
+  public:
+	std::vector<line> lines = {};
+
+	block_type() = default;
+	block_type(std::vector<line> _lines) : lines(std::move(_lines))
+	{
+	}
+
+	auto names() const
+	{
+		auto names = std::unordered_set<std::string>{};
+		std::for_each(lines.begin(), lines.end(),
+					  [&](const auto &line) { names.insert(line.name()); });
+		return names;
+	}
+
+	static auto to_mat(const block_type &block)
+	{
+		auto mat = mat_type{};
+		const auto &lines = block.lines;
+
+		for (size_t i = 0; i < lines.size(); i++) {
+			auto i_name = lines[i].name();
+
+			for (size_t j = 0; j < i; j++) {
+				// pair of names into unsorted map
+				auto j_name = lines[j].name();
+
+				auto key = make_key(i_name, j_name);
+				// TODO: parallise this
+				mat[key].add_compare(lines[i].nucl(), lines[j].nucl());
+			}
+		}
+
+		return mat;
+	}
+
+	static void trim_to_core(block_type &block)
+	{
+		auto lines = block.lines;
+		auto length = lines[0].nucl().size();
+		auto mask = std::vector<char>(length, 0);
+
+		for (auto &line : lines) {
+			std::transform(mask.begin(), mask.end(), line.nucl().begin(),
+						   mask.begin(), [](auto bit, auto nucleotide) {
+							   return bit || nucleotide == '-';
+						   });
+		}
+
+		for (auto &line : lines) {
+			std::transform(mask.begin(), mask.end(), line.nucl().begin(),
+						   line.nucl().begin(), [](auto bit, auto nucleotide) {
+							   return bit ? '-' : nucleotide;
+						   });
+		}
+	}
+};
 
 line read_line(FILE *file)
 {
@@ -195,46 +269,13 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-namespace std
-{
-template <> struct hash<key_type> {
-  public:
-	size_t operator()(key_type p) const noexcept
-	{
-		auto a = std::hash<std::string>()(p.first);
-		auto b = std::hash<std::string>()(p.second);
-		return a ^ ((b << 6) + (b >> 2));
-	}
-};
-} // namespace std
-
-auto make_key(std::string i_name, std::string j_name)
+key_type make_key(std::string i_name, std::string j_name)
 {
 	if (i_name > j_name) {
 		std::swap(i_name, j_name);
 	}
 
 	return std::make_pair(i_name, j_name);
-}
-
-auto block2mat(const block_type &lines)
-{
-	auto mat = mat_type{};
-
-	for (size_t i = 0; i < lines.size(); i++) {
-		auto i_name = lines[i].name();
-
-		for (size_t j = 0; j < i; j++) {
-			// pair of names into unsorted map
-			auto j_name = lines[j].name();
-
-			auto key = make_key(i_name, j_name);
-			// TODO: parallise this
-			mat[key].add_compare(lines[i].nucl(), lines[j].nucl());
-		}
-	}
-
-	return mat;
 }
 
 void print_matrix(const std::unordered_set<std::string> &names,
@@ -294,44 +335,36 @@ void convert(const std::string &file_name)
 
 		skip_blank_lines(file);
 
-		blocks.push_back(std::move(lines));
+		blocks.emplace_back(std::move(lines));
 	}
+	fclose(file);
 
 	// compute set of names
 	auto names = std::unordered_set<std::string>{};
 	std::for_each(blocks.begin(), blocks.end(), [&](const auto &block) {
-		std::for_each(block.begin(), block.end(),
-					  [&](const auto &line) { names.insert(line.name()); });
+		auto n = block.names();
+		for (auto name : n) {
+			names.insert(name);
+		}
+		// names.merge(n);
 	});
 
 	// do stuff
+	if (core) {
+		auto split =
+			std::remove_if(blocks.begin(), blocks.end(),
+						   [&](auto &block) { return block.names() != names; });
+		blocks.erase(split, blocks.end());
 
-	// if (core) {
-	// 	auto length = lines[0].nucl().size();
-	// 	auto mask = std::vector<char>(length, 0);
-
-	// 	for (auto &line : lines) {
-	// 		std::transform(mask.begin(), mask.end(), line.nucl().begin(),
-	// 					   mask.begin(), [](auto bit, auto nucleotide) {
-	// 						   return bit || nucleotide == '-';
-	// 					   });
-	// 	}
-
-	// 	for (auto &line : lines) {
-	// 		std::transform(mask.begin(), mask.end(), line.nucl().begin(),
-	// 					   line.nucl().begin(), [](auto bit, auto nucleotide) {
-	// 						   return bit ? '-' : nucleotide;
-	// 					   });
-	// 	}
-	// }
+		std::for_each(blocks.begin(), blocks.end(), block_type::trim_to_core);
+	}
 
 	auto mats = std::vector<mat_type>{blocks.size()};
-	std::transform(blocks.begin(), blocks.end(), mats.begin(), block2mat);
+	std::transform(blocks.begin(), blocks.end(), mats.begin(),
+				   block_type::to_mat);
 	auto dist = std::accumulate(mats.begin(), mats.end(), mat_type{});
 
 	print_matrix(names, dist);
-
-	fclose(file);
 }
 
 void usage(int status)

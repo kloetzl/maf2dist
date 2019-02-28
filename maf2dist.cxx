@@ -347,8 +347,13 @@ void convert(const std::string &file_name)
 
 	// compute set of names
 	auto names = std::unordered_set<std::string>{};
-	auto merger = [&](const auto &block) { names.merge(block.names()); };
-	std::for_each(blocks.begin(), blocks.end(), merger);
+	std::for_each(blocks.begin(), blocks.end(), [&](const auto &block) {
+		auto n = block.names();
+		for (auto name : n) {
+			names.insert(name);
+		}
+		// names.merge(n);
+	});
 
 	// do stuff
 	if (core) {

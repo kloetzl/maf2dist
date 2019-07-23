@@ -13,13 +13,14 @@
 #include <memory>
 #include <numeric>
 #include <string>
+#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 static const int MAX_NAME_LENGTH = 64;
-static bool core = false;
+static bool complete_deletion = false;
 
 void usage(int);
 void convert(const std::string &);
@@ -194,7 +195,7 @@ class block_type
 		return mat;
 	}
 
-	static void trim_to_core(block_type &block)
+	static void complete_delete(block_type &block)
 	{
 		auto lines = block.lines;
 		auto length = lines[0].nucl().size();
@@ -243,7 +244,7 @@ line read_line(FILE *file)
 int main(int argc, char *argv[])
 {
 	static struct option long_options[] = {
-		{"core", no_argument, 0, 'c'},
+		{"complete-deletion", no_argument, 0, 'c'},
 		{"help", no_argument, 0, 'h'},
 		{0, 0, 0, 0} //
 	};
@@ -253,7 +254,7 @@ int main(int argc, char *argv[])
 		if (c == 'h') {
 			usage(EXIT_SUCCESS);
 		} else if (c == 'c') {
-			core = true;
+			complete_deletion = true;
 		} else if (c == -1) {
 			break;
 		} else {
@@ -267,7 +268,13 @@ int main(int argc, char *argv[])
 	auto file_names = std::vector<std::string>{argv, argv + argc};
 
 	if (file_names.empty()) {
-		file_names.push_back("-");
+		if (isatty(STDIN_FILENO)) {
+			// print a helpful message on ./maf2dist without args
+			usage(EXIT_FAILURE);
+		} else {
+			// read from stdin in pipe
+			file_names.push_back("-");
+		}
 	}
 
 	std::for_each(file_names.begin(), file_names.end(), convert);
@@ -356,14 +363,15 @@ void convert(const std::string &file_name)
 	});
 
 	// do stuff
-	if (core) {
+	if (complete_deletion) {
 		auto is_not_full = [&](const auto &block) {
 			return block.names() != names;
 		};
 		auto split = std::remove_if(blocks.begin(), blocks.end(), is_not_full);
 		blocks.erase(split, blocks.end());
 
-		std::for_each(blocks.begin(), blocks.end(), block_type::trim_to_core);
+		std::for_each(blocks.begin(), blocks.end(),
+					  block_type::complete_delete);
 	}
 
 	auto mats = std::vector<mat_type>{blocks.size()};
@@ -376,7 +384,14 @@ void convert(const std::string &file_name)
 
 void usage(int status)
 {
-	static const char str[] = {"usage: maf2dist [file...]\n"};
+	static const char str[] = {
+		"Usage: maf2dist [-c|-h] [FILE...]\n"
+		"Compute a distance matrix from an alignment.\n"
+		"\nWith no FILE, or when FILE is -, read standard input.\n"
+		"\n  -c   Delete complete columns with gaps\n"
+		"  -h   Print help\n" //
+	};
+
 	fputs(str, status == EXIT_SUCCESS ? stdout : stderr);
 	exit(status);
 }

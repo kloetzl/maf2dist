@@ -447,7 +447,7 @@ void version()
 	static const char str[] = {
 		// hack
 		"maf2dist v2\n"
-		"Copyright (C) 2016 - 2018 Fabian Klötzl "
+		"Copyright (C) 2016 - 2019 Fabian Klötzl "
 		"<fabian-maf2dist@kloetzl.info>\n"
 		"ISC License\n" //
 	};

@@ -19,6 +19,10 @@
 #include <utility>
 #include <vector>
 
+#ifdef __AVX2__
+#include <immintrin.h>
+#endif
+
 static const int MAX_NAME_LENGTH = 64;
 static bool complete_deletion = false;
 
@@ -39,7 +43,40 @@ class model
 		size_t local_mutations = 0;
 		assert(a.size() == b.size());
 
-		for (size_t i = 0; i < a.size(); i++) {
+		size_t i = 0;
+
+#ifdef __AVX2__
+		using vec_type = __m256i;
+		const auto vec_size = sizeof(vec_type);
+
+		size_t length_chunked = a.size() - (a.size() % vec_size);
+
+		vec_type all_gap = _mm256_set1_epi8('-');
+
+		for (; i < length_chunked; i += vec_size) {
+			vec_type chunk1;
+			memcpy(&chunk1, a.c_str() + i, vec_size);
+			vec_type chunk2;
+			memcpy(&chunk2, b.c_str() + i, vec_size);
+
+			vec_type eql = _mm256_cmpeq_epi8(chunk1, chunk2);
+			unsigned int neql_mask = (~_mm256_movemask_epi8(eql)) &
+									 (((unsigned long)1 << vec_size) - 1);
+
+			vec_type gap1 = _mm256_cmpeq_epi8(chunk1, all_gap);
+			vec_type gap2 = _mm256_cmpeq_epi8(chunk2, all_gap);
+
+			unsigned int gap1_mask = _mm256_movemask_epi8(gap1);
+			unsigned int gap2_mask = _mm256_movemask_epi8(gap2);
+			unsigned int gap_mask = gap1_mask | gap2_mask;
+
+			neql_mask &= ~gap_mask;
+			local_mutations += __builtin_popcount(neql_mask);
+			local_total += vec_size - __builtin_popcount(gap_mask);
+		}
+#endif
+
+		for (; i < a.size(); i++) {
 			if (a[i] == '-' || b[i] == '-') continue;
 
 			if (a[i] != b[i]) {
@@ -78,11 +115,14 @@ std::vector<std::string> name_registry = {};
 using key_type = std::pair<long, long>;
 using mat_type = std::unordered_map<key_type, model>;
 
-
-key_type make_key(const std::string& i_name, const std::string& j_name)
+key_type make_key(const std::string &i_name, const std::string &j_name)
 {
-	auto i = std::find(std::begin(name_registry), std::end(name_registry), i_name) - std::begin(name_registry);
-	auto j = std::find(std::begin(name_registry), std::end(name_registry), j_name) - std::begin(name_registry);
+	auto i =
+		std::find(std::begin(name_registry), std::end(name_registry), i_name) -
+		std::begin(name_registry);
+	auto j =
+		std::find(std::begin(name_registry), std::end(name_registry), j_name) -
+		std::begin(name_registry);
 
 	if (i > j) std::swap(i, j);
 
@@ -175,7 +215,8 @@ class block_type
 	{
 		for (auto line : lines) {
 			auto name = line.name();
-			if (std::find(std::begin(name_registry), std::end(name_registry), name) == std::end(name_registry))
+			if (std::find(std::begin(name_registry), std::end(name_registry),
+						  name) == std::end(name_registry))
 				name_registry.push_back(name);
 		}
 	}

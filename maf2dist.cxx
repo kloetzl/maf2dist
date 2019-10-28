@@ -74,10 +74,20 @@ class model
 	}
 };
 
-using key_type = std::pair<std::string, std::string>;
+std::vector<std::string> name_registry = {};
+using key_type = std::pair<long, long>;
 using mat_type = std::unordered_map<key_type, model>;
 
-key_type make_key(std::string i_name, std::string j_name);
+
+key_type make_key(const std::string& i_name, const std::string& j_name)
+{
+	auto i = std::find(std::begin(name_registry), std::end(name_registry), i_name) - std::begin(name_registry);
+	auto j = std::find(std::begin(name_registry), std::end(name_registry), j_name) - std::begin(name_registry);
+
+	if (i > j) std::swap(i, j);
+
+	return std::make_pair(i, j);
+}
 
 namespace std
 {
@@ -85,8 +95,8 @@ template <> struct hash<key_type> {
   public:
 	size_t operator()(key_type p) const noexcept
 	{
-		auto a = std::hash<std::string>()(p.first);
-		auto b = std::hash<std::string>()(p.second);
+		auto a = std::hash<long>()(p.first);
+		auto b = std::hash<long>()(p.second);
 		return a ^ ((b << 6) + (b >> 2));
 	}
 };
@@ -163,6 +173,11 @@ class block_type
 	block_type() = default;
 	block_type(std::vector<line> _lines) : lines(std::move(_lines))
 	{
+		for (auto line : lines) {
+			auto name = line.name();
+			if (std::find(std::begin(name_registry), std::end(name_registry), name) == std::end(name_registry))
+				name_registry.push_back(name);
+		}
 	}
 
 	auto names() const
@@ -183,7 +198,6 @@ class block_type
 			auto i_name = lines[i].name();
 
 			for (size_t j = 0; j < i; j++) {
-				// pair of names into unsorted map
 				auto j_name = lines[j].name();
 
 				auto key = make_key(i_name, j_name);
@@ -280,15 +294,6 @@ int main(int argc, char *argv[])
 	std::for_each(file_names.begin(), file_names.end(), convert);
 
 	return 0;
-}
-
-key_type make_key(std::string i_name, std::string j_name)
-{
-	if (i_name > j_name) {
-		std::swap(i_name, j_name);
-	}
-
-	return std::make_pair(i_name, j_name);
 }
 
 void print_matrix(const std::unordered_set<std::string> &names,

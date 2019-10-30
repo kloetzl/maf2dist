@@ -112,35 +112,19 @@ class model
 };
 
 std::vector<std::string> name_registry = {};
-using key_type = std::pair<long, long>;
+using key_type = unsigned long;
 using mat_type = std::unordered_map<key_type, model>;
 
 key_type make_key(const std::string &i_name, const std::string &j_name)
 {
-	auto i =
-		std::find(std::begin(name_registry), std::end(name_registry), i_name) -
-		std::begin(name_registry);
-	auto j =
-		std::find(std::begin(name_registry), std::end(name_registry), j_name) -
-		std::begin(name_registry);
+	auto begin = std::begin(name_registry);
+	auto i = std::find(begin, std::end(name_registry), i_name) - begin;
+	auto j = std::find(begin, std::end(name_registry), j_name) - begin;
 
 	if (i > j) std::swap(i, j);
 
-	return std::make_pair(i, j);
+	return (i << (sizeof(key_type) * 8 / 2)) + j;
 }
-
-namespace std
-{
-template <> struct hash<key_type> {
-  public:
-	size_t operator()(key_type p) const noexcept
-	{
-		auto a = std::hash<long>()(p.first);
-		auto b = std::hash<long>()(p.second);
-		return a ^ ((b << 6) + (b >> 2));
-	}
-};
-} // namespace std
 
 void forward_to_next_line(FILE *file)
 {

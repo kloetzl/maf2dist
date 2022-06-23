@@ -141,6 +141,14 @@ void skip_blank_lines(FILE *file)
 	ungetc(c, file);
 }
 
+void skip_possible_comment(FILE *file)
+{
+	int c;
+	if ((c = fgetc(file)) == '#')
+		forward_to_next_line(file);
+	
+}
+
 class line
 {
 	static auto strip_name(const char *c_name)
@@ -363,8 +371,7 @@ void convert(const std::string &file_name)
 
 	forward_to_next_line(file);
 
-	fscanf(file, "#");
-	forward_to_next_line(file);
+	skip_possible_comment(file);
 
 	skip_blank_lines(file);
 
